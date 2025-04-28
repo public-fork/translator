@@ -13,13 +13,13 @@ codegen-units = 1
 [dependencies]
 cli-clipboard = "0.4"
 cfg-if = "1"
-config = "0.13"
+config = "0.15.11"
 deepl = { package = "deepl-api-client", version = "0.2" }
 eframe = "0.31.1"
 egui = "0.31.1"
-lazy_static = "1.4"
-log = "0.4"
-ico = "0.3"
+lazy_static = "1.5"
+log = "0.4.27"
+ico = "0.4"
 rdev = "0.5"
 tauri-hotkey = { git = "https://github.com/zu1k/tauri-hotkey-rs", branch = "master" }
 
