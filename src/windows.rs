@@ -28,6 +28,7 @@ pub fn setup_ui_task(cc: &CreationContext) -> Box<dyn App> {
     {
         let state = state.clone();
         let mouse_state = Arc::new(Mutex::new(MouseState::new()));
+        let ctx = ctx.clone(); // Clone ctx for use in the closure
 
         {
             let mouse_state = mouse_state.clone();
@@ -59,8 +60,7 @@ pub fn setup_ui_task(cc: &CreationContext) -> Box<dyn App> {
             thread::spawn(move || {
                 let mut clipboard_last = "".to_string();
                 loop {
-                    if mouse_state.lock().unwrap().is_select() && !ctx.input().pointer.has_pointer()
-                    {
+                    if mouse_state.lock().unwrap().is_select() && !ctx.input(|i| i.pointer.any_down()) {
                         if let Some(text_new) = ctrl_c() {
                             if text_new != clipboard_last {
                                 clipboard_last = text_new.clone();
@@ -130,7 +130,7 @@ pub fn setup_ui_task(cc: &CreationContext) -> Box<dyn App> {
         });
     }
 
-    Box::new(ui::MyApp::new(state, task_tx, cc))
+    Box::new(ui::MyApp::new(state, task_tx, &ctx))
 }
 
 pub fn run() {
@@ -159,12 +159,26 @@ fn launch_window() {
     let (width, height) = get_window_size();
 
     let native_options = eframe::NativeOptions {
-        always_on_top: true,
-        decorated: false,
-        initial_window_size: Some(egui::vec2(width, height)),
-        icon_data: Some(get_icon_data()),
-        run_and_return: true,
+        viewport: egui::ViewportBuilder::default()
+            .with_inner_size([width, height])
+            .with_decorations(false)
+            .with_always_on_top()
+            .with_icon(get_icon_data()),
         ..Default::default()
     };
-    eframe::run_native("Translator", native_options, Box::new(setup_ui_task));
+    eframe::run_native(
+        "Translator",
+        native_options,
+        Box::new(|cc| Ok(Box::new(ui::MyApp::new(
+            Arc::new(Mutex::new(State {
+                text: "请选中需要翻译的文字触发划词翻译".to_string(),
+                source_lang: deepl::Lang::Auto,
+                target_lang: deepl::Lang::ZH,
+                link_color: LINK_COLOR_COMMON,
+            })),
+            mpsc::sync_channel(1).0,
+            &cc.egui_ctx,
+        )))),
+    )
+    .unwrap();
 }

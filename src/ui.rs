@@ -22,7 +22,6 @@ pub struct State {
 
 pub struct MyApp {
     state: Arc<Mutex<State>>,
-
     lang_list_with_auto: Vec<deepl::Lang>,
     lang_list: Vec<deepl::Lang>,
     task_chan: mpsc::SyncSender<()>,
@@ -35,17 +34,18 @@ pub struct MyApp {
 }
 
 impl MyApp {
-    pub fn new(
-        state: Arc<Mutex<State>>,
-
-        task_chan: mpsc::SyncSender<()>,
-        cc: &eframe::CreationContext<'_>,
-    ) -> Self {
-        font::install_fonts(&cc.egui_ctx);
+    pub fn new(state: Arc<Mutex<State>>, task_chan: mpsc::SyncSender<()>, ctx: &egui::Context) -> Self {
+        font::install_fonts(ctx);
 
         match get_theme().as_str() {
-            "light" => cc.egui_ctx.set_visuals(egui::Visuals::light()),
-            _ => cc.egui_ctx.set_visuals(egui::Visuals::dark()),
+            "light" => ctx.set_style(egui::Style {
+                visuals: egui::Visuals::light(),
+                ..Default::default()
+            }),
+            _ => ctx.set_style(egui::Style {
+                visuals: egui::Visuals::dark(),
+                ..Default::default()
+            }),
         }
 
         #[cfg(target_os = "windows")]
@@ -57,7 +57,6 @@ impl MyApp {
 
         Self {
             state,
-
             lang_list_with_auto: deepl::Lang::lang_list_with_auto(),
             lang_list: deepl::Lang::lang_list(),
             task_chan,
@@ -72,10 +71,9 @@ impl MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let Self {
             state,
-
             lang_list_with_auto,
             lang_list,
             task_chan,
@@ -91,10 +89,10 @@ impl eframe::App for MyApp {
         let old_source_lang = state.source_lang;
         let old_target_lang = state.target_lang;
 
-        if ctx.input().key_pressed(egui::Key::Escape) {
+        if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
             #[cfg(target_os = "windows")]
             hk_setting.unregister_all();
-            frame.close()
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
 
         #[cfg(target_os = "windows")]
@@ -106,7 +104,7 @@ impl eframe::App for MyApp {
             ui.vertical_centered(|ui| {
                 ui.horizontal_top(|ui| {
                     let combobox_width = 145.0;
-                    egui::ComboBox::from_id_source(egui::Id::new("source_lang_ComboBox"))
+                    egui::ComboBox::from_id_salt("source_lang_ComboBox")
                         .selected_text(state.source_lang.description())
                         .width(combobox_width)
                         .show_ui(ui, |ui| {
@@ -127,7 +125,7 @@ impl eframe::App for MyApp {
                         state.source_lang = tmp_target_lang;
                     };
 
-                    egui::ComboBox::from_id_source(egui::Id::new("target_lang_ComboBox"))
+                    egui::ComboBox::from_id_salt("target_lang_ComboBox")
                         .selected_text(state.target_lang.description())
                         .width(combobox_width)
                         .show_ui(ui, |ui| {
@@ -150,13 +148,13 @@ impl eframe::App for MyApp {
 
                             if ui.add(egui::Button::new("□").frame(false)).clicked() {
                                 *show_box = !*show_box;
-                                frame.set_decorations(*show_box);
+                                ctx.send_viewport_cmd(egui::ViewportCommand::Decorations(*show_box));
                             };
                             if ui
                                 .add(egui::Button::new("○").frame(false))
-                                .is_pointer_button_down_on()
+                                .drag_started()
                             {
-                                frame.drag_window();
+                                ctx.send_viewport_cmd(egui::ViewportCommand::StartDrag);
                             };
                         });
                     });
@@ -183,18 +181,15 @@ impl eframe::App for MyApp {
         };
 
         ctx.request_repaint();
-
-        #[cfg(windows)]
-        frame.set_window_size(ctx.used_size());
     }
 }
 
-pub fn get_icon_data() -> eframe::IconData {
+pub fn get_icon_data() -> egui::IconData {
     let ioc_buf = Cursor::new(include_bytes!("../res/translator.ico"));
     let icon_dir = ico::IconDir::read(ioc_buf).unwrap();
     let image = icon_dir.entries()[0].decode().unwrap();
-    eframe::IconData {
-        rgba: std::vec::Vec::from(image.rgba_data()),
+    egui::IconData {
+        rgba: image.rgba_data().to_vec(),
         width: image.width(),
         height: image.height(),
     }

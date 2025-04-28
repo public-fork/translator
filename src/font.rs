@@ -1,5 +1,6 @@
 use eframe::egui::{self, FontDefinitions, FontFamily, TextStyle};
 use egui::{FontData, FontId};
+use std::sync::Arc;
 use FontFamily::{Monospace, Proportional};
 
 use crate::cfg::SETTINGS;
@@ -8,17 +9,17 @@ pub fn install_fonts(egui_ctx: &egui::Context) {
     let mut fonts = FontDefinitions::default();
     fonts.font_data.insert(
         "LXGWWenKai-Regular".to_owned(),
-        FontData::from_static(include_bytes!("../res/LXGWWenKai-Regular.ttf")),
+        Arc::new(FontData::from_static(include_bytes!("../res/LXGWWenKai-Regular.ttf"))),
     );
     fonts
         .families
-        .get_mut(&FontFamily::Monospace)
-        .unwrap()
+        .entry(FontFamily::Monospace)
+        .or_insert_with(Vec::new)
         .insert(0, "LXGWWenKai-Regular".to_owned());
     fonts
         .families
-        .get_mut(&FontFamily::Proportional)
-        .unwrap()
+        .entry(FontFamily::Proportional)
+        .or_insert_with(Vec::new)
         .insert(0, "LXGWWenKai-Regular".to_owned());
 
     egui_ctx.set_fonts(fonts);
